@@ -110,29 +110,6 @@ The core component of FGD, MSDATrans consists of:
 ```
 
 ## Configuration
-
-### Model Configuration
-
-Edit `ultralytics/cfg/models/v8/yolov8.yaml` to customize model architecture.
-
-### Distillation Configuration
-
-Modify parameters in `FGD.py`:
-
-```python
-msd_teacher = MSDATrans(
-    base_channels=64,
-    num_inputs=3,
-    num_offsets=4
-).to(device)
-
-optimizer_msd = optim.Adam(
-    msd_teacher.parameters(), 
-    lr=1e-2, 
-    betas=(0.9, 0.999)
-)
-```
-
 ### Training Configuration
 
 ```yaml
