@@ -34,6 +34,40 @@ pip install ultralytics
 pip install numpy matplotlib opencv-python
 ```
 
+## Quick Start
+
+### Basic Detection
+
+```python
+from ultralytics import YOLO
+
+# Load a pretrained YOLOv8 model
+model = YOLO('yolov8n.pt')
+
+# Run inference on an image
+results = model('bus.jpg')
+
+# Display results
+results[0].show()
+```
+
+### Training
+
+```python
+from ultralytics import YOLO
+
+# Load model
+model = YOLO('yolov8n.yaml')
+
+# Train the model
+results = model.train(
+    data='coco128.yaml',
+    epochs=100,
+    batch=16,
+    imgsz=640
+)
+```
+
 ## Model Architecture
 
 ### MSDATrans (Multi-Scale Deformable Attention Transformer)
@@ -107,9 +141,51 @@ The core component of FGD, MSDATrans consists of:
 2. **Information Flow**: Transformer generates features, Student learns to match
 3. **Alternating Optimization**: Players take turns updating to find equilibrium
 4. **Knowledge Distillation**: Student learns by matching the transformed features that mimic teacher style
+
+## Usage
+
+### Training with Distillation
+
+```bash
+python train.py --model yolov8n.yaml --teacher yolov8l.yaml --data coco128.yaml --epochs 200
+```
+
+### Inference
+
+```bash
+python detect.py --weights best.pt --source images/ --conf 0.25
+```
+
+### Validation
+
+```bash
+python val.py --weights best.pt --data coco128.yaml
 ```
 
 ## Configuration
+
+### Model Configuration
+
+Edit `ultralytics/cfg/models/v8/yolov8.yaml` to customize model architecture.
+
+### Distillation Configuration
+
+Modify parameters in `FGD.py`:
+
+```python
+msd_teacher = MSDATrans(
+    base_channels=64,
+    num_inputs=3,
+    num_offsets=4
+).to(device)
+
+optimizer_msd = optim.Adam(
+    msd_teacher.parameters(), 
+    lr=1e-2, 
+    betas=(0.9, 0.999)
+)
+```
+
 ### Training Configuration
 
 ```yaml
