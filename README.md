@@ -122,55 +122,78 @@ The core component of FGD, MSDATrans consists of:
 3. **Feature Fusion**: Combines self-attended and cross-attended features using gating mechanisms
 4. **Deformable Sampling**: Dynamically samples features based on learned offsets
 
-### Distillation loss calculation process
+### Distillation loss calculation process (Adversarial Training Perspective)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    Distillation Loss Calculation Process               │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  Teacher Model (YOLOv8l)                     Student Model (YOLOv8n)   │
-│       │                                              │                  │
-│       │                                              │                  │
-│       │  torch.no_grad()                             │                  │
-│       ▼                                              ▼                  │
-│  Forward ──→ t_fs (教师特征)                    Forward ──→ s_fs       │
-│       │                                              │                  │
-│       │                                              ▼                  │
-│       │                                    Converter ──→ s_fs_aligned  │
-│       │                                              │                  │
-│       │                                              ▼                  │
-│       │                                    ┌─────────────────┐         │
-│       │                                    │   MSDATrans     │         │
-│       │                                    │ (特征空间变换)  │         │
-│       │                                    └────────┬────────┘         │
-│       │                                             │                  │
-│       │                                             ▼                  │
-│       │                                    f_trans (教师风格特征)      │
-│       │                                             │                  │
-│       │                    ┌────────────────────────┴──────────┐       │
-│       │                    │                                   │       │
-│       │                    ▼                                   ▼       │
-│       │            ┌─────────────┐                   ┌─────────────┐   │
-│       │            │ tea_loss    │                   │ dist_loss   │   │
-│       │            │ 更新MSDATrans│                   │ 更新学生模型 │   │
-│       │            │ (每5batch)  │                   │ (每batch)   │   │
-│       │            └──────┬──────┘                   └──────┬──────┘   │
-│       │                   │                                  │          │
-│       │                   ▼                                  ▼          │
-│       │            MSDATrans参数更新                   学生模型参数更新  │
-│       │                                                                 │
-│       └───────────────────────┬─────────────────────────────────────────┘
-│                               │
-│                               ▼
-│                       知识迁移 (Knowledge Transfer)
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Adversarial Distillation Training Process               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│                         Teacher Model (Reference)                           │
+│                              │                                              │
+│                              │  torch.no_grad()                             │
+│                              ▼                                              │
+│                    t_fs (教师特征 - 知识参考)                               │
+│                              │                                              │
+│                              │ 提供监督信号                                 │
+│                              ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                      对抗博弈 (Adversarial Game)                    │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │                                                                     │   │
+│  │     ┌─────────────────┐                        ┌─────────────────┐  │   │
+│  │     │   MSDATrans     │ ←─────── 博弈 ───────→ │  Student Model │  │   │
+│  │     │  (特征变换器)    │                        │   (学习者)      │  │   │
+│  │     └────────┬────────┘                        └────────┬────────┘  │   │
+│  │              │                                         │            │   │
+│  │              │ 生成"教师风格"特征                      │ 学习匹配    │   │
+│  │              ▼                                         ▼            │   │
+│  │     f_trans (变换特征)                          s_fs (学生特征)     │   │
+│  │              │                                         │            │   │
+│  │              │              ┌─────────────┐             │            │   │
+│  │              └─────────────→│  对抗损失    │←────────────┘            │   │
+│  │                            │ Adversarial │                          │   │
+│  │                            │   Loss      │                          │   │
+│  │                            └──────┬──────┘                          │   │
+│  │                                   │                                 │   │
+│  │              ┌────────────────────┼────────────────────┐            │   │
+│  │              ▼                    ▼                    ▼            │   │
+│  │     ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │   │
+│  │     │ tea_loss    │    │ dist_loss   │    │  L_task     │          │   │
+│  │     │ 更新MSDATrans│    │ 更新学生模型 │    │ 检测任务损失 │          │   │
+│  │     │ (每5batch)  │    │ (每batch)   │    │ (每batch)   │          │   │
+│  │     └──────┬──────┘    └──────┬──────┘    └──────┬──────┘          │   │
+│  │            │                  │                  │                   │   │
+│  │            ▼                  ▼                  ▼                   │   │
+│  │     MSDATrans参数      学生模型参数      学生模型参数                 │   │
+│  │     更新               更新 (蒸馏)      更新 (任务)                  │   │
+│  │                                                                     │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                      │                                     │
+│                                      ▼                                     │
+│                          知识迁移 & 特征对齐                                 │
+│                          Knowledge Transfer & Feature Alignment            │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Loss Formulas:**
-- **MSDATrans Update Loss**: `tea_loss = sum(1 / (MSE(f_trans[j], s_fs[j]) + 1e-6))`
-- **Student Distillation Loss**: `dist_loss = mean(MSE(s_fs[i], f_trans[i].detach()))`
-- **Total Loss**: `L_total = L_task + dist_loss`
+**Adversarial Training Dynamics:**
+
+| Player | Role | Objective | Update Frequency |
+|--------|------|-----------|------------------|
+| **MSDATrans** | Feature Transformer | Generate "teacher-style" features | Every 5 batches |
+| **Student Model** | Learner | Match the transformed features | Every batch |
+| **Teacher Model** | Reference | Provide knowledge supervision | Never (frozen) |
+
+**Loss Formulas (Adversarial Perspective):**
+- **Transformer Loss**: `tea_loss = sum(1 / (MSE(f_trans[j], s_fs[j]) + 1e-6))` — Encourage information preservation
+- **Student Loss**: `dist_loss = mean(MSE(s_fs[i], f_trans[i].detach()))` — Match transformed features
+- **Total Loss**: `L_total = L_task + dist_loss` — Combine detection task with distillation
+
+**Key Insights:**
+1. **Two-player Game**: MSDATrans and Student Model compete in an adversarial manner
+2. **Information Flow**: Teacher provides reference, Transformer transforms, Student learns
+3. **Alternating Optimization**: Players take turns updating to find equilibrium
+4. **Knowledge Distillation**: Student learns by matching the transformed features that mimic teacher style
 
 ## Usage
 
