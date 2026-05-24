@@ -98,8 +98,8 @@ The core component of FGD, MSDATrans consists of:
 | **Student Model** | Learner | Match the transformed features | Every batch |
 
 **Loss Formulas (Adversarial Perspective):**
-- **Transformer Loss**: `tea_loss = sum(1 / (MSE(f_trans[j], s_fs[j]) + 1e-6))` — Encourage information preservation
-- **Student Loss**: `dist_loss = mean(MSE(s_fs[i], f_trans[i].detach()))` — Match transformed features
+- **Transformer Loss**: `tea_loss = sum(1 / (MSE(f_trans[j], s_fs[j]) + 1e-6))` — Encourage the update of transformed features(Deviating from original features)
+- **Student Loss**: `dist_loss = mean(MSE(s_fs[i], f_trans[i].detach()))` — Original features match with transformed features
 - **Total Loss**: `L_total = L_task + dist_loss` — Combine detection task with distillation
 
 **Key Insights:**
