@@ -122,22 +122,55 @@ The core component of FGD, MSDATrans consists of:
 3. **Feature Fusion**: Combines self-attended and cross-attended features using gating mechanisms
 4. **Deformable Sampling**: Dynamically samples features based on learned offsets
 
-### Distillation Pipeline
+### Distillation loss calculation process
 
 ```
-Teacher Model (YOLOv8l)          Student Model (YOLOv8n)
-        │                              │
-        ├─ Forward ──→ t_fs           ├─ Forward ──→ s_fs
-        │                              │
-        │                              ├─ Converter ──→ s_fs_aligned
-        │                              │
-        │                              └─ MSDATrans ──→ f_trans
-        │                                        │
-        │                                        └─ Distillation Loss
-        │                                                  │
-        └───────────────────────────────────────────────────┘
-                           Knowledge Transfer
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Distillation Loss Calculation Process               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Teacher Model (YOLOv8l)                     Student Model (YOLOv8n)   │
+│       │                                              │                  │
+│       │                                              │                  │
+│       │  torch.no_grad()                             │                  │
+│       ▼                                              ▼                  │
+│  Forward ──→ t_fs (教师特征)                    Forward ──→ s_fs       │
+│       │                                              │                  │
+│       │                                              ▼                  │
+│       │                                    Converter ──→ s_fs_aligned  │
+│       │                                              │                  │
+│       │                                              ▼                  │
+│       │                                    ┌─────────────────┐         │
+│       │                                    │   MSDATrans     │         │
+│       │                                    │ (特征空间变换)  │         │
+│       │                                    └────────┬────────┘         │
+│       │                                             │                  │
+│       │                                             ▼                  │
+│       │                                    f_trans (教师风格特征)      │
+│       │                                             │                  │
+│       │                    ┌────────────────────────┴──────────┐       │
+│       │                    │                                   │       │
+│       │                    ▼                                   ▼       │
+│       │            ┌─────────────┐                   ┌─────────────┐   │
+│       │            │ tea_loss    │                   │ dist_loss   │   │
+│       │            │ 更新MSDATrans│                   │ 更新学生模型 │   │
+│       │            │ (每5batch)  │                   │ (每batch)   │   │
+│       │            └──────┬──────┘                   └──────┬──────┘   │
+│       │                   │                                  │          │
+│       │                   ▼                                  ▼          │
+│       │            MSDATrans参数更新                   学生模型参数更新  │
+│       │                                                                 │
+│       └───────────────────────┬─────────────────────────────────────────┘
+│                               │
+│                               ▼
+│                       知识迁移 (Knowledge Transfer)
+└─────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Loss Formulas:**
+- **MSDATrans Update Loss**: `tea_loss = sum(1 / (MSE(f_trans[j], s_fs[j]) + 1e-6))`
+- **Student Distillation Loss**: `dist_loss = mean(MSE(s_fs[i], f_trans[i].detach()))`
+- **Total Loss**: `L_total = L_task + dist_loss`
 
 ## Usage
 
