@@ -4,14 +4,12 @@ An enhanced YOLOv8 object detection framework incorporating Feature-Guided Disti
 
 ## Introduction
 
-This project extends the Ultralytics YOLOv8 framework with a novel Feature-Guided Distillation (FGD) mechanism. The FGD approach leverages a Multi-Scale Deformable Attention Transformer (MSDATrans) to effectively transfer knowledge from a larger teacher model to a smaller student model, achieving better performance while maintaining model efficiency.
+This project extends the Ultralytics YOLOv8 framework through a new feature oriented distillation (FGD) mechanism. In order to adapt to human-vehicle-pet object detection,the FGD method utilizes a multi-scale deformable attention converter (MSDATrans) to map features of certain layer in the model to teacher-style features, and guides the original model to learn teacher-style features at the same time.
 
 ## Features
 
 - **Feature-Guided Distillation**: Advanced knowledge distillation using MSDATrans
 - **Multi-Scale Attention**: Self-attention and cross-attention mechanisms across multiple scales
-- **Alternating Optimization**: Novel training strategy for stable distillation
-- **Channel Alignment**: Automatic channel matching between teacher and student models
 - **Flexible Configuration**: Support for various YOLOv8 model sizes and configurations
 
 ## Installation
@@ -201,7 +199,6 @@ lrf: 0.01
 # Distillation settings
 distill: True
 distill_ids: [17, 20, 23]
-ts_c_msg: [(128, 256), (256, 256), (512, 512)]
 ```
 
 ## Results
