@@ -129,50 +129,41 @@ The core component of FGD, MSDATrans consists of:
 │                    Adversarial Distillation Training Process               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│                         Teacher Model (Reference)                           │
-│                              │                                              │
-│                              │  torch.no_grad()                             │
-│                              ▼                                              │
-│                    t_fs (教师特征 - 知识参考)                               │
-│                              │                                              │
-│                              │ 提供监督信号                                 │
-│                              ▼                                              │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                      对抗博弈 (Adversarial Game)                    │   │
+│  │                      Adversarial Game                               │   │
 │  ├─────────────────────────────────────────────────────────────────────┤   │
 │  │                                                                     │   │
 │  │     ┌─────────────────┐                        ┌─────────────────┐  │   │
-│  │     │   MSDATrans     │ ←─────── 博弈 ───────→ │  Student Model │  │   │
-│  │     │  (特征变换器)    │                        │   (学习者)      │  │   │
+│  │     │    MSDATrans    │◄────── Game ────────► │   Student Model │  │   │
+│  │     │(Feature Transform)│                        │    (Learner)    │  │   │
 │  │     └────────┬────────┘                        └────────┬────────┘  │   │
-│  │              │                                         │            │   │
-│  │              │ 生成"教师风格"特征                      │ 学习匹配    │   │
-│  │              ▼                                         ▼            │   │
-│  │     f_trans (变换特征)                          s_fs (学生特征)     │   │
-│  │              │                                         │            │   │
-│  │              │              ┌─────────────┐             │            │   │
-│  │              └─────────────→│  对抗损失    │←────────────┘            │   │
-│  │                            │ Adversarial │                          │   │
-│  │                            │   Loss      │                          │   │
+│  │              │                                          │           │   │
+│  │              │ Generate "teacher-style" features        │ Learn to  │   │
+│  │              │                                          │ match     │   │
+│  │              ▼                                          ▼           │   │
+│  │     f_trans (transformed)                        s_fs (student)      │   │
+│  │              │                                          │           │   │
+│  │              │              ┌─────────────┐             │           │   │
+│  │              └─────────────►│ Adversarial  │◄────────────┘           │   │
+│  │                            │    Loss      │                          │   │
 │  │                            └──────┬──────┘                          │   │
 │  │                                   │                                 │   │
 │  │              ┌────────────────────┼────────────────────┐            │   │
 │  │              ▼                    ▼                    ▼            │   │
 │  │     ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │   │
-│  │     │ tea_loss    │    │ dist_loss   │    │  L_task     │          │   │
-│  │     │ 更新MSDATrans│    │ 更新学生模型 │    │ 检测任务损失 │          │   │
-│  │     │ (每5batch)  │    │ (每batch)   │    │ (每batch)   │          │   │
+│  │     │  tea_loss   │    │ dist_loss   │    │  L_task    │          │   │
+│  │     │ Update MSDATrans    │ Update Student │    │Detection Loss│          │   │
+│  │     │ (every 5 batches)  │ (every batch) │    │ (every batch)│          │   │
 │  │     └──────┬──────┘    └──────┬──────┘    └──────┬──────┘          │   │
 │  │            │                  │                  │                   │   │
 │  │            ▼                  ▼                  ▼                   │   │
-│  │     MSDATrans参数      学生模型参数      学生模型参数                 │   │
-│  │     更新               更新 (蒸馏)      更新 (任务)                  │   │
+│  │     MSDATrans params    Student params    Student params            │   │
+│  │     update (distill)    update (distill)   update (task)           │   │
 │  │                                                                     │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                      │                                     │
 │                                      ▼                                     │
-│                          知识迁移 & 特征对齐                                 │
-│                          Knowledge Transfer & Feature Alignment            │
+│                    Knowledge Transfer & Feature Alignment                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -182,7 +173,6 @@ The core component of FGD, MSDATrans consists of:
 |--------|------|-----------|------------------|
 | **MSDATrans** | Feature Transformer | Generate "teacher-style" features | Every 5 batches |
 | **Student Model** | Learner | Match the transformed features | Every batch |
-| **Teacher Model** | Reference | Provide knowledge supervision | Never (frozen) |
 
 **Loss Formulas (Adversarial Perspective):**
 - **Transformer Loss**: `tea_loss = sum(1 / (MSE(f_trans[j], s_fs[j]) + 1e-6))` — Encourage information preservation
@@ -191,7 +181,7 @@ The core component of FGD, MSDATrans consists of:
 
 **Key Insights:**
 1. **Two-player Game**: MSDATrans and Student Model compete in an adversarial manner
-2. **Information Flow**: Teacher provides reference, Transformer transforms, Student learns
+2. **Information Flow**: Transformer generates features, Student learns to match
 3. **Alternating Optimization**: Players take turns updating to find equilibrium
 4. **Knowledge Distillation**: Student learns by matching the transformed features that mimic teacher style
 
