@@ -70,47 +70,6 @@ results = model.train(
 )
 ```
 
-## Distillation Training
-
-### Feature-Guided Distillation (FGD)
-
-The FGD module enables knowledge distillation from a teacher model to a student model.
-
-```python
-from FGD import train_v2_distill
-from ultralytics import YOLO
-
-# Load teacher model (larger model)
-teacher_model = YOLO('yolov8l.yaml').cuda()
-
-# Load student model (smaller model)
-student_model = YOLO('yolov8n.yaml').cuda()
-
-# Configure distillation parameters
-distill_ids = [17, 20, 23]  # Layers to distill
-ts_c_msg = [(128, 256), (256, 256), (512, 512)]  # Channel mapping
-
-# Start distillation training
-student_model.train_v2_distill(
-    teacher_model=teacher_model,
-    distill_ids=distill_ids,
-    ts_c_msg=ts_c_msg,
-    data='coco128.yaml',
-    epochs=200,
-    batch=8
-)
-```
-
-### Distillation Parameters
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `distill_ids` | Layer indices to perform distillation | [17, 20, 23] |
-| `ts_c_msg` | Channel mapping between student and teacher | [(128, 256), (256, 256), (512, 512)] |
-| `lr_rate` | Learning rate scaling factor | 10 |
-| `num_offsets` | Number of deformable sampling points | 4 |
-| `base_channels` | Base channel count for MSDATrans | 64 |
-
 ## Model Architecture
 
 ### MSDATrans (Multi-Scale Deformable Attention Transformer)
